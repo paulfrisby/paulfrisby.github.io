@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			#map_canvas
+			{
+				width: 1000px;
+				height: 550px;
+			}
+		</style>
+		<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>
+		<script>
+		
+		// Start DOM Parser
+		if(typeof(DOMParser) == 'undefined') {
+			DOMParser = function() {}
+			DOMParser.prototype.parseFromString = function(str, contentType) {
+				if(typeof(ActiveXObject) != 'undefined') 
+				{
+					var xmldata = new ActiveXObject('MSXML.DomDocument');
+					xmldata.async = false;
+					xmldata.loadXML(str);
+					return xmldata;
+				} else if(typeof(XMLHttpRequest) != 'undefined') 
+				{
+					var xmldata = new XMLHttpRequest;
+					if(!contentType) {
+					contentType = 'application/xml';
+				}
+					xmldata.open('GET', 'data:' + contentType + ';charset=utf-8,' + encodeURIComponent(str), false);
+					if(xmldata.overrideMimeType) {
+						xmldata.overrideMimeType(contentType);
+					}
+					xmldata.send(null);
+					return xmldata.responseXML;
+				}
+			}
+		}
+		
+		function loadFile(input, onload_func) {
+			var input, file, fr;
+
+			if (typeof window.FileReader !== 'function') {
+				alert("Browser not supported.");
+				return;
+			}
+
+			if (!input) {
+				alert("Element not found.");
+			}
+			else if (!input.files) {
+				alert("This browser doesn't support the file type.");
+			}
+			else if (!input.files[0]) {
+				balert("Select a file, then click load");
+			}
+			else {
+				file = input.files[0];
+				fr = new FileReader();
+				fr.onload = receivedText;
+				fr.readAsText(file);
+			}
+
+			function receivedText() {
+				onload_func(fr.result);
+			}
+		}
+		
+		function parseXml(xmlString)
+		{
+			var doc = new DOMParser().parseFromString(xmlString, "text/xml");
+			return retrieve_data(doc.documentElement);
+		}
+	
+		function retrieve_data(node, result) {
+			if(!result)
+				result = { coords: [] };
+				
+			switch(node.nodeName)
+			{
+				case "name":
+					var p = $("<p />");
+					p.text(node.nodeName + " = " + node.textContent);
+					result.name = node.textContent;
+					$("#log").append(p);
+					break;
+					
+				case "trkseg":
+					var coord = [];
+					result.coords.push(coord)
+					for(var i=0; i<node.childNodes.length; i++)
+					{
+						var snode = node.childNodes[i];
+						if(snode.nodeName == "trkpt")
+						{
+							var trkpt = { latlon: [ parseFloat(snode.attributes["lat"].value), parseFloat(snode.attributes["lon"].value) ] };
+							for(var j=0; j<snode.childNodes.length; j++)
+							{
+								var ssnode = snode.childNodes[j];
+								switch(ssnode.nodeName)
+								{
+									case "time":
+										trkpt.time = new Date(ssnode.childNodes[0].data);
+										break;
+									case "ele":
+										trkpt.ele = parseFloat(ssnode.childNodes[0].data);
+										break;
+										
+									case "extensions":
+										for(var k=0; k<ssnode.childNodes[1].childNodes.length; k++){
+											var extensionNode = ssnode.childNodes[1].childNodes[k];
+											switch(extensionNode.nodeName)
+											{
+												case "ns3:hr":
+													trkpt.hr = parseFloat(extensionNode.childNodes[0].data);
+													break;
+												
+												case "ns3:cad":
+													trkpt.cad = parseFloat(extensionNode.childNodes[0].data);
+													break;
+												
+												case "gpxtpx:hr":
+													trkpt.hr = parseFloat(extensionNode.childNodes[0].data);
+													break;
+												
+												case "gpxtpx:atemp":
+													trkpt.atemp = parseFloat(extensionNode.childNodes[0].data);
+													break;
+											}
+										}
+										break;
+								}
+							}
+							coord.push(trkpt)
+						}
+					}
+					break;
+			}
+		
+			for(var i=0; i<node.childNodes.length; i++)
+			{
+				retrieve_data(node.childNodes[i], result);
+			}
+			return result;
+		}
+		
+		function convert_coords(places_data)
+		{
+			var result = [];
+			for(var i=0; i<places_data.length; i++)
+			{
+				result.push(new google.maps.LatLng(places_data[i].latlon[0], places_data[i].latlon[1]));
+			}
+			return result;
+		}
+		function get_extension_data(places_data)
+		{
+			var result = [];
+			for(var i=0; i<places_data.length; i++)
+			{
+				var	data = [places_data[i].time, places_data[i].ele, places_data[i].hr, places_data[i].cad, places_data[i].atemp];
+				result.push(data);
+			}
+			return result;
+		}
+		
+		function get_limits(data)
+		{
+			var result = { s: 90.0, n: -90, e: -180.0, w: 180.0 };
+			for(var i=0; i<data.coords.length; i++)
+			{
+				for(var j=0; j<data.coords[i].length; j++)
+				{
+					var place = data.coords[i][j];
+					if(result.s > place.latlon[0]) result.s = place.latlon[0];
+					if(result.n < place.latlon[0]) result.n = place.latlon[0];
+					if(result.e < place.latlon[1]) result.e = place.latlon[1];
+					if(result.w > place.latlon[1]) result.w = place.latlon[1];
+				}
+			}	
+			return result;
+		}
+		
+		function bindInfoWindow(flightPath, map, infowindow, html){
+			google.maps.event.addListener(flightPath, 'mouseover', function(){
+				infowindow.setContent(html);
+				infowindow.open(map, flightPath);
+			});
+		}
+		
+		// takes floatss from 0 to 255 and returns a rgb string to represent given colour 
+		function rgb(red, green, blue)
+		{
+			red = Math.floor(red);
+			green = Math.floor(green);
+			blue = Math.floor(blue);
+			return ["rgb(",red,",",green,",",blue,")"].join("");
+		}
+		
+		function plotMap(visOption, extensionData, places, map, polylines)
+		{			
+			// logic to work out min / max heartrate in gpx file
+			var optMin = extensionData[0][visOption];
+			var optMax = extensionData[0][visOption];
+			for(var j=1; j<places.length; j++)
+			{
+				if(extensionData[j][visOption] < optMin)
+				{
+					optMin = extensionData[j][visOption];
+				}
+				if(extensionData[j][visOption] > optMax)
+				{
+					optMax = extensionData[j][visOption];
+				}
+			}
+			
+			var infowindow = new google.maps.InfoWindow({
+				content: 'Hello World'
+				});
+			
+			// creates a new polyline for each section of the run so that colour for each section can be manipulated according to chosen option
+			for(var j=0; j+1<places.length; j++)
+			{
+				var optRange = optMax - optMin;
+				var optDiff = extensionData[j][visOption] - optMin;
+				var optScale = optDiff / optRange;
+						
+				// ranges from green at min to yellow at midpoint
+				if(optScale < 0.5)
+				{
+					var flightPath = new google.maps.Polyline({
+					path: places.slice(j, j+2),
+					position: places[j],
+					strokeColor: rgb(255*(optScale*2),255, 0),
+					strokeOpacity: 1.0,
+					strokeWeight: 6
+				});
+				}
+				
+				// ranges from yellow at midpoint to red at max
+				else
+				{
+					var flightPath = new google.maps.Polyline({
+					path: places.slice(j, j+2),
+					position: places[j],
+					strokeColor: rgb(255,255-255*((optScale-0.5)*2), 0),
+					strokeOpacity: 1.0,
+					strokeWeight: 6
+					});
+				}
+				
+				google.maps.event.addListener(flightPath, 'mouseover', function() {
+					infowindow.open(map, this);
+				});
+				
+				var dataTypes = ["time", "elevation", "heart rate", "cadence", "air temperature"]
+				var toDisplay = "";
+						
+				var time = extensionData[j][0].toLocaleTimeString();
+				toDisplay += (dataTypes[0] + ": " + time + "<br/>");
+						
+				for (var i = 1; i < extensionData[j].length; i++) {
+						var crit = extensionData[j][i];
+							
+						if (typeof crit != 'undefined') {
+							toDisplay += (dataTypes[i] + ": " + crit + "<br/>");
+						}
+					}
+						
+				
+				bindInfoWindow(flightPath, map, infowindow, "<p>"+ toDisplay +"</p>"); // format[time, elevation, heart rate, cadence, atemp]
+				flightPath.setMap(map);
+				polylines.push(flightPath);
+			}
+		}
+
+		</script>
+	</head>
+	<body>
+		<form action='#' id="form" >
+			<input type='file' id='fileinput'>
+			<input type='submit' id='btnLoad' value='Load'>
+		</form>
+		<div id="log"></div>
+		<p id="demo"></p>
+		<div id="map_canvas"></div>
+		<p id="demo2"></p>
+		
+		<form action='#' name="selectVariable" id="selectVariable">
+			<input name="variable" type="radio" id="heart rate" value="2" checked/>
+			<label for="heart rate">heart rate</label>
+			<input name="variable" type="radio" id="elevation" value="1"/>
+			<label for="elevation">elevation</label>
+			<input name="variable" type="radio" id="cadence" value="3" />
+			<label for="cadence">cadence</label>
+			<input name="variable" type="radio" id="atemp" value="4" />
+			<label for="atemp">air temperature</label>
+		</form>
+		<script>
+			$("#fileinput").change(function() { 
+				loadFile($("#fileinput")[0], function(xml) {
+					var rad = document.selectVariable.variable;
+					var option = 2;
+					var polylines = [];
+					for(var i = 0; i < rad.length; i++) {
+						rad[i].onclick = function() {
+							console.log(this.value);
+							option = parseInt(this.value);
+							
+							for(i = 0; i < polylines.length; i++)
+							{
+								polylines[i].setMap(null);
+							}
+							plotMap(option, extensionData, places, map, polylines);
+						};
+					}
+					
+					result = parseXml(xml);
+					var bounds = get_limits(result);
+					var places = convert_coords(result.coords[0]); // returns an array of google.maps.LatLng
+					var extensionData = get_extension_data(result.coords[0]); // format[time, ele, hr, cad, atemp]
+					
+					document.getElementById("demo").innerHTML = "starts at " + places [0] + " \n time: "+ extensionData[0][0]; // this statement prints the extension data for the first point
+
+					var myLatlng = new google.maps.LatLng(-34.397, 150.644);
+					var myOptions = {
+					  zoom: 8,
+					  center: myLatlng,
+					  mapTypeId: google.maps.MapTypeId.ROADMAP
+					}
+					
+					var map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+					
+					var southWest = new google.maps.LatLng(bounds.s,bounds.w);
+					var northEast = new google.maps.LatLng(bounds.n,bounds.e);
+					var bounds = new google.maps.LatLngBounds(southWest,northEast);
+					map.fitBounds(bounds);
+
+					plotMap(option, extensionData, places, map, polylines);
+				});
+			});
+			
+		</script>
+	</body>
+<html>
