@@ -1,0 +1,15 @@
+
+
+div.title {
+	position: relative;
+	top: 100px;
+	left: 50px;
+	font-family: 'FontAwesome';
+	color: White;
+	
+	font-size: 250%;
+}
+
+.hidden {
+display: none;
+}

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <link rel="stylesheet" href="css/bootstrap-theme.min.css">
+        <link rel="stylesheet" href="css/fontAwesome.css">
+        <link rel="stylesheet" href="css/hero-slider.css">
+        <link rel="stylesheet" href="css/tooplate-style.css">
+		<link rel="stylesheet" href="css/upload.css">
+		
+		<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>
+		<script>
+		
+		// Start DOM Parser
+		if(typeof(DOMParser) == 'undefined') {
+			DOMParser = function() {}
+			DOMParser.prototype.parseFromString = function(str, contentType) {
+				if(typeof(ActiveXObject) != 'undefined') 
+				{
+					var xmldata = new ActiveXObject('MSXML.DomDocument');
+					xmldata.async = false;
+					xmldata.loadXML(str);
+					return xmldata;
+				} else if(typeof(XMLHttpRequest) != 'undefined') 
+				{
+					var xmldata = new XMLHttpRequest;
+					if(!contentType) {
+					contentType = 'application/xml';
+				}
+					xmldata.open('GET', 'data:' + contentType + ';charset=utf-8,' + encodeURIComponent(str), false);
+					if(xmldata.overrideMimeType) {
+						xmldata.overrideMimeType(contentType);
+					}
+					xmldata.send(null);
+					return xmldata.responseXML;
+				}
+			}
+		}
+		
+		function loadFile(input, onload_func) {
+			var input, file, fr;
+
+			if (typeof window.FileReader !== 'function') {
+				alert("Browser not supported.");
+				return;
+			}
+
+			if (!input) {
+				alert("Element not found.");
+			}
+			else if (!input.files) {
+				alert("This browser doesn't support the file type.");
+			}
+			else if (!input.files[0]) {
+				balert("Select a file, then click load");
+			}
+			else {
+				file = input.files[0];
+				fr = new FileReader();
+				fr.onload = receivedText;
+				fr.readAsText(file);
+			}
+
+			function receivedText() {
+				onload_func(fr.result);
+			}
+		}
+		
+		function parseXml(xmlString)
+		{
+			var doc = new DOMParser().parseFromString(xmlString, "text/xml");
+			return retrieve_data(doc.documentElement);
+		}
+	
+		function retrieve_data(node, result) {
+			if(!result)
+				result = { coords: [] };
+				
+			switch(node.nodeName)
+			{
+				case "name":
+					var p = $("<p />");
+					p.text(node.nodeName + " = " + node.textContent);
+					result.name = node.textContent;
+					$("#log").append(p);
+					break;
+					
+				case "type":
+					var t = $("<p />");
+					t.text(node.nodeName + " = " + node.textContent);
+					result.type = node.textContent;
+					$("#log").append(t);
+					break;
+					
+				case "trkseg":
+					var coord = [];
+					result.coords.push(coord)
+					for(var i=0; i<node.childNodes.length; i++)
+					{
+						var snode = node.childNodes[i];
+						if(snode.nodeName == "trkpt")
+						{
+							var trkpt = { latlon: [ parseFloat(snode.attributes["lat"].value), parseFloat(snode.attributes["lon"].value) ] };
+							for(var j=0; j<snode.childNodes.length; j++)
+							{
+								var ssnode = snode.childNodes[j];
+								switch(ssnode.nodeName)
+								{
+									case "time":
+										trkpt.time = new Date(ssnode.childNodes[0].data);
+										break;
+									case "ele":
+										trkpt.ele = parseFloat(ssnode.childNodes[0].data);
+										break;
+										
+									case "extensions":
+										for(var k=0; k<ssnode.childNodes[1].childNodes.length; k++){
+											var extensionNode = ssnode.childNodes[1].childNodes[k];
+											switch(extensionNode.nodeName)
+											{
+												case "ns3:hr":
+													trkpt.hr = parseFloat(extensionNode.childNodes[0].data);
+													break;
+												
+												case "ns3:cad":
+													trkpt.cad = parseFloat(extensionNode.childNodes[0].data);
+													break;
+												
+												case "gpxtpx:hr":
+													trkpt.hr = parseFloat(extensionNode.childNodes[0].data);
+													break;
+												
+												case "gpxtpx:atemp":
+													trkpt.atemp = parseFloat(extensionNode.childNodes[0].data);
+													break;
+											}
+										}
+										break;
+								}
+							}
+							coord.push(trkpt)
+						}
+					}
+					break;
+			}
+		
+			for(var i=0; i<node.childNodes.length; i++)
+			{
+				retrieve_data(node.childNodes[i], result);
+			}
+			return result;
+		}
+		
+		function convert_coords(places_data)
+		{
+			var result = [];
+			for(var i=0; i<places_data.length; i++)
+			{
+				result.push(new google.maps.LatLng(places_data[i].latlon[0], places_data[i].latlon[1]));
+			}
+			return result;
+		}
+		function get_extension_data(places_data)
+		{
+			var result = [];
+			for(var i=0; i<places_data.length; i++)
+			{
+				var	data = [places_data[i].time, places_data[i].ele, places_data[i].hr, places_data[i].cad, places_data[i].atemp];
+				result.push(data);
+			}
+			return result;
+		}
+		
+		function get_limits(data)
+		{
+			var result = { s: 90.0, n: -90, e: -180.0, w: 180.0 };
+			for(var i=0; i<data.coords.length; i++)
+			{
+				for(var j=0; j<data.coords[i].length; j++)
+				{
+					var place = data.coords[i][j];
+					if(result.s > place.latlon[0]) result.s = place.latlon[0];
+					if(result.n < place.latlon[0]) result.n = place.latlon[0];
+					if(result.e < place.latlon[1]) result.e = place.latlon[1];
+					if(result.w > place.latlon[1]) result.w = place.latlon[1];
+				}
+			}	
+			return result;
+		}
+		
+		function bindInfoWindow(flightPath, map, infowindow, html){
+			google.maps.event.addListener(flightPath, 'mouseover', function(){
+				infowindow.setContent(html);
+				infowindow.open(map, flightPath);
+			});
+		}
+		
+		// takes floatss from 0 to 255 and returns a rgb string to represent given colour 
+		function rgb(red, green, blue)
+		{
+			red = Math.floor(red);
+			green = Math.floor(green);
+			blue = Math.floor(blue);
+			return ["rgb(",red,",",green,",",blue,")"].join("");
+		}
+		function span(option, extensionData){
+			var min = extensionData[0] [option];
+			var max = extensionData[0] [option];
+			for (var i=0; i<extensionData.length; i++){
+				var x = extensionData[i] [option];
+				if (min > x){
+					min = x;
+				} else if (max < x) {
+					max = x;
+				}
+			}
+			return (parseInt(max-min));
+		}
+		function averages(extensionData){
+			var totals = [0.0, 0.0, 0.0, 0.0];
+			var l = extensionData.length;
+			for (var i=0; i<l; i++){
+				for (var j=1; j<5; j++){
+					if (typeof extensionData[i][j] != 'undefined'){
+						totals [j-1] = totals [j-1] + extensionData[i][j];
+					}
+				}
+			}
+			var averages = []
+			for (var i=0; i<totals.length; i++){
+				if (isNaN(totals[i])){
+					averages.push(0);
+				}
+				else{
+					averages.push((totals[i]/l).toFixed(1));
+				}
+			}
+			return (averages);
+		}
+		function populateStats(result, extensionData){
+			var name = result.name;
+			var startTime = extensionData[0][0];
+			var endTime = extensionData[extensionData.length-1] [0];
+			var duration = endTime.getTime() - startTime.getTime();
+			var hoursDuration = Math.floor(duration/1000/60/60);
+			duration -= hoursDuration*1000*60*60
+			var minutesDuration = Math.floor(duration/1000/60);
+
+			var avgs = averages(extensionData); // format[ele, hr, cad, atemp], if doesn't exist is 0
+			console.log(avgs);
+			setRadioButtons(avgs);		// HIDE/SHOW RADIOBUTTONS
+			
+				//get MetaData
+			document.getElementById("info-fileName").innerHTML = name;
+			document.getElementById("info-avgHr").innerHTML = avgs[1];
+			document.getElementById("info-eleSpan").innerHTML = span(1, extensionData) + " m"; // elevation has index 1 in extensionData[i]
+			
+			if (hoursDuration > 0) {
+				document.getElementById("info-actLen").innerHTML = hoursDuration + " hours and " + minutesDuration + " minutes";
+			} else{
+				document.getElementById("info-actLen").innerHTML = minutesDuration + " minutes";
+			}
+		}
+		function setRadioButtons(avgs){
+			// Show all radiobuttons
+			var buttons = document.getElementsByName("variable");
+			for (var i=0; i<buttons.length; i++){
+				buttons[i].style.display = "inline";
+			}
+			
+			
+			// Hide radiobuttons not to be used
+			var x = document.getElementById("cadence");
+			var y = document.getElementById("cad-label");
+			if (avgs[2] == 0 || avgs[2] == 0.0){
+				if (x.style.display === "none") {
+					x.style.display = "block";
+					y.style.display = "block";
+				} else {
+					x.style.display = "none";
+					y.style.display = "none";
+				}
+			}
+			
+			x = document.getElementById("atemp");
+			y = document.getElementById("atemp-label");
+			if (avgs[3] === 0|| avgs[3] == 0.0){
+				if (x.style.display === "none") {
+					x.style.display = "block";
+					y.style.display = "block";
+				} else {
+					x.style.display = "none";
+					y.style.display = "none";
+				}
+			}
+			
+		}
+		function plotMap(visOption, extensionData, places, map, polylines)
+		{			
+			// logic to work out min / max heartrate in gpx file
+			var optMin = extensionData[0][visOption];
+			var optMax = extensionData[0][visOption];
+			for(var j=1; j<places.length; j++)
+			{	
+				if (typeof extensionData[j][visOption] != 'undefined') {
+					if(extensionData[j][visOption] < optMin || typeof optMin === 'undefined')
+					{
+						optMin = extensionData[j][visOption];
+					}
+					if(extensionData[j][visOption] > optMax || typeof optMax === 'undefined')
+					{
+						optMax = extensionData[j][visOption];
+					}
+				}
+			}
+			
+			if (typeof optMin === 'undefined'){
+				optMin = 0;
+			}
+			if (typeof optMax === 'undefined'){
+				optMax = 0;
+			}
+			
+			var infowindow = new google.maps.InfoWindow({
+				content: 'Hello World'
+				});
+			
+			// creates a new polyline for each section of the run so that colour for each section can be manipulated according to chosen option
+			for(var j=0; j+1<places.length; j++)
+			{
+				var optRange = optMax - optMin;
+				if (typeof extensionData[j][visOption] != 'undefined'){
+					var optDiff = extensionData[j][visOption] - optMin;
+				} else{
+						var optDiff = 0;
+				}
+				if (optRange != 0){
+					var optScale = optDiff / optRange;
+				} else{
+					var optScale = 0;
+				}
+				// ranges from green at min to yellow at midpoint
+				if(optScale < 0.5)
+				{
+					var flightPath = new google.maps.Polyline({
+					path: places.slice(j, j+2),
+					position: places[j],
+					strokeColor: rgb(255*(optScale*2),255, 0),
+					strokeOpacity: 1.0,
+					strokeWeight: 6
+				});
+				}
+				
+				// ranges from yellow at midpoint to red at max
+				else
+				{
+					var flightPath = new google.maps.Polyline({
+					path: places.slice(j, j+2),
+					position: places[j],
+					strokeColor: rgb(255,255-255*((optScale-0.5)*2), 0),
+					strokeOpacity: 1.0,
+					strokeWeight: 6
+					});
+				}
+				
+				google.maps.event.addListener(flightPath, 'mouseover', function() {
+					infowindow.open(map, this);
+				});
+				
+				var dataTypes = ["time", "elevation", "heart rate", "cadence", "air temperature"]
+				var toDisplay = "";
+						
+				var time = extensionData[j][0].toLocaleTimeString();
+				toDisplay += (dataTypes[0] + ": " + time + "<br/>");
+						
+				for (var i = 1; i < extensionData[j].length; i++) {
+						var crit = extensionData[j][i];
+							
+						if (typeof crit != 'undefined') {
+							toDisplay += (dataTypes[i] + ": " + crit.toFixed(1) + "<br/>");
+						}
+					}
+						
+				
+				bindInfoWindow(flightPath, map, infowindow, "<p>"+ toDisplay +"</p>"); // format[time, elevation, heart rate, cadence, atemp]
+				flightPath.setMap(map);
+				polylines.push(flightPath);
+			}
+		}
+
+		</script>
+	</head>
+	<body id ="upload-body" class="upload-body" style="overflow:auto">
+	 <div class="header" >
+        <div class="container">
+            <nav class="navbar navbar-inverse" role="navigation" >
+                <div class="navbar-header">
+                    <button type="button" id="nav-toggle" class="navbar-toggle" data-toggle="collapse" data-target="#main-nav">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a href="#" class="navbar-brand scroll-top">
+                        <div class="logo">
+                        	<img src="img/logo.png" alt="Mountain View">
+                        </div>
+                    </a>
+                </div>
+                <!--/.navbar-header-->
+                <div id="main-nav" class="collapse navbar-collapse">
+                    <ul class="nav navbar-nav">
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="aboutus.html">About Us</a></li>
+                        <li><a href="visualise.html"  >Upload File</a></li>
+                    </ul>
+                </div>
+                <!--/.navbar-collapse-->
+            </nav>
+            <!--/.navbar-->
+        </div>
+        <!--/.container-->
+    </div>
+    <!--/.header-->
+	
+	<section class="upload-section">
+	<div class="upload-view">
+<!--		LOG ::::<div id="log"></div>-->
+		<div id="upload-info" >
+		<div><h3>Tracking File: <span id="info-fileName"/></h3></div>
+		<div><h3>Time Spent: <span id="info-actLen"/></h3></div>
+		<div><h3>Average Heart Rate: <span id="info-avgHr"/></h3></div>
+		<div><h3>Elevation Span Covered: <span id="info-eleSpan"/></h3></div>
+		</div>
+		<div id="map-section">
+		<div id="map_canvas"></div>
+		<div id="upload-radiogroup">
+		<form action="#" name="selectVariable" id="selectVariable">
+			<input name="variable" type="radio" id="heart rate" value="2" checked/>
+			<label for="heart rate" name="variable">Heart rate</label>
+			<input name="variable" type="radio" id="elevation" value="1"/>
+			<label for="elevation" name="variable">Elevation</label>
+			<input name="variable" type="radio" id="cadence" value="3" />
+			<label for="cadence" id="cad-label" name="variable">Cadence</label>
+			<input name="variable" type="radio" id="atemp" value="4" />
+			<label for="atemp" id="atemp-label" name="variable">Air Temperature</label>
+		</form>
+		</div>
+		</div>
+	</div>
+	
+	
+    <h2>Tracking File Upload</h2>
+    <p class="upload-text">Upload your gpx files and have your run mapped out. 
+	<br/>Track your heart rate, speed and altitude to
+    improve your health and improve your life, what are you waiting for? </p>
+	<div class="form-upload">
+		<form action="#" id="form" >
+		<label class="custom-file-upload"> Upload Your GPX file<input type="file" id="fileinput"></label>
+		</form>
+	</div>
+		</section>
+		
+		
+		<script>
+			$("#fileinput").change(function() { 
+				loadFile($("#fileinput")[0], function(xml) {
+					document.selectVariable.variable.value = 2; // reset variable when file is changed
+					var rad = document.selectVariable.variable;
+					var option = 2;
+					var polylines = [];
+					for(var i = 0; i < rad.length; i++) {
+						rad[i].onclick = function() {
+							option = parseInt(this.value);
+							
+							for(i = 0; i < polylines.length; i++)
+							{
+								polylines[i].setMap(null);
+							}
+							plotMap(option, extensionData, places, map, polylines);
+						};
+					}
+					
+					result = parseXml(xml);
+					var bounds = get_limits(result);
+					var places = convert_coords(result.coords[0]); // returns an array of google.maps.LatLng
+					var extensionData = get_extension_data(result.coords[0]); // format[time, ele, hr, cad, atemp]
+					populateStats(result, extensionData); // set stats and radiobuttons
+					
+					var myLatlng = new google.maps.LatLng(-34.397, 150.644);
+					var myOptions = {
+					  zoom: 8,
+					  center: myLatlng,
+					  mapTypeId: google.maps.MapTypeId.ROADMAP
+					}
+					
+					var map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+					
+					var southWest = new google.maps.LatLng(bounds.s,bounds.w);
+					var northEast = new google.maps.LatLng(bounds.n,bounds.e);
+					var bounds = new google.maps.LatLngBounds(southWest,northEast);
+					map.fitBounds(bounds);
+
+					plotMap(option, extensionData, places, map, polylines);
+					
+					
+				});
+			
+				//set Visible
+					document.getElementById("upload-info").style.visibility= "Visible";
+					document.getElementById("upload-radiogroup").style.visibility= "Visible";
+					document.getElementById("map_canvas").style.display= "block";
+					document.getElementById("map-section").style.display= "block";
+					document.getElementById("upload-body").style.backgroundImage ="url('img/slide_02.jpg')"
+					
+			});
+			
+		</script>
+	</body>
+</html>
