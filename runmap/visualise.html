@@ -299,7 +299,7 @@
 			}
 			
 		}
-		function plotMap(visOption, extensionData, places, map, polylines, markers)
+		function plotMap(visOption, extensionData, places, map, polylines)
 		{			
 			// logic to work out min / max heartrate in gpx file
 			var optMin = extensionData[0][visOption];
@@ -397,8 +397,7 @@
 				title: "Start"
 			});
 			startMarker.setIcon('http://paulfrisby.com/runmap/img/start-flag.png');
-			finishMarker.setMap(map);
-			markers.push(startMarker);
+			startMarker.setMap(map);
 			
 			var finishMarker = new google.maps.Marker({
 				position: places[places.length - 1],
@@ -406,7 +405,6 @@
 			});
 			finishMarker.setIcon('http://paulfrisby.com/runmap/img/finish-flag.png');
 			finishMarker.setMap(map);
-			markers.push(finishMarker);
 		}
 
 		</script>
@@ -490,7 +488,6 @@
 					var rad = document.selectVariable.variable;
 					var option = 2;
 					var polylines = [];
-					var markers = [];
 					for(var i = 0; i < rad.length; i++) {
 						rad[i].onclick = function() {
 							option = parseInt(this.value);
@@ -499,12 +496,7 @@
 							{
 								polylines[i].setMap(null);
 							}
-							
-							for(i = 0; i < markers.length; i++)
-							{
-								markers[i].setMap(null);
-							}
-							plotMap(option, extensionData, places, map, polylines, markers);
+							plotMap(option, extensionData, places, map, polylines);
 						};
 					}
 					
