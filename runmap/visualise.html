@@ -406,6 +406,30 @@
 			finishMarker.setIcon('http://paulfrisby.com/runmap/img/finish-flag.png');
 			finishMarker.setMap(map);
 		}
+		//Validating file extension
+		var _validFileExtensions = [".gpx"];    
+		function ValidateSingleInput(oInput) {
+			if (oInput.type == "file") {
+				var sFileName = oInput.value;
+				 if (sFileName.length > 0) {
+					var blnValid = false;
+					for (var j = 0; j < _validFileExtensions.length; j++) {
+						var sCurExtension = _validFileExtensions[j];
+						if (sFileName.substr(sFileName.length - sCurExtension.length, sCurExtension.length).toLowerCase() == sCurExtension.toLowerCase()) {
+							blnValid = true;
+							break;
+						}
+					}
+					 
+					if (!blnValid) {
+						alert("Sorry, " + sFileName + " is invalid, allowed extension is: " + _validFileExtensions.join(", "));
+						oInput.value = "";
+						return false;
+					}
+				}
+			}
+			return true;
+		}
 
 		</script>
 	</head>
@@ -475,7 +499,7 @@
     improve your health and improve your life, what are you waiting for? </p>
 	<div class="form-upload">
 		<form action="#" id="form" >
-		<label class="custom-file-upload"> Upload Your GPX file<input type="file" id="fileinput"></label>
+		<label class="custom-file-upload"> Upload Your GPX file<input type="file" id="fileinput" onchange="ValidateSingleInput(this);"></label>
 		</form>
 	</div>
 		</section>
