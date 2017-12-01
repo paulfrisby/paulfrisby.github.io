@@ -19,6 +19,10 @@ input[type="file"] {
     vertical-align: top;
     padding: 8px 13px 6px;
 }
+.custom-file-upload:hover {
+	background-color: #5c9d7d;	
+}
+
 #upload-info{
 	visibility: hidden;
 }
@@ -30,7 +34,6 @@ input[type="file"] {
     font-size: 12px;
     font-weight: 500;
     letter-spacing: 1px;
-    text-transform: uppercase;
     text-decoration: none;
     border-radius: 20px;
     transition: all 0.5s;
