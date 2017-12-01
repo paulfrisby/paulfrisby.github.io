@@ -256,7 +256,7 @@
 			
 				//get MetaData
 			document.getElementById("info-fileName").innerHTML = name;
-			document.getElementById("info-avgHr").innerHTML = avgs[1];
+			document.getElementById("info-avgHr").innerHTML = avgs[1] +" bpm";
 			document.getElementById("info-eleSpan").innerHTML = span(1, extensionData) + " m"; // elevation has index 1 in extensionData[i]
 			
 			if (hoursDuration > 0) {
@@ -298,6 +298,9 @@
 				}
 			}
 			
+		}
+		function capitalizeFirstLetter(string) {
+			return string.charAt(0).toUpperCase() + string.slice(1);
 		}
 		function plotMap(visOption, extensionData, places, map, polylines)
 		{			
@@ -375,13 +378,28 @@
 				var toDisplay = "";
 						
 				var time = extensionData[j][0].toLocaleTimeString();
-				toDisplay += (dataTypes[0] + ": " + time + "<br/>");
+				toDisplay += (capitalizeFirstLetter(dataTypes[0]) + ": " + time + "<br/>");
+				
 						
 				for (var i = 1; i < extensionData[j].length; i++) {
 						var crit = extensionData[j][i];
 							
 						if (typeof crit != 'undefined') {
-							toDisplay += (dataTypes[i] + ": " + crit.toFixed(1) + "<br/>");
+							//toDisplay += (dataTypes[i] + ": " + crit.toFixed(1) + "<br/>");
+							switch (dataTypes[i].toLowerCase()){
+								case "elevation":
+									toDisplay += (capitalizeFirstLetter(dataTypes[i]) + " (m): "  + crit.toFixed(1) + "<br/>");
+								break;
+								case "heart rate":
+									toDisplay += (capitalizeFirstLetter(dataTypes[i]) + " (bpm): "  + crit.toFixed(1) + "<br/>");
+								break;
+								case "cadence":
+									toDisplay += (capitalizeFirstLetter(dataTypes[i]) + " (spm): "  + crit.toFixed(1) + "<br/>");
+								break;
+								case "air temperature":
+									toDisplay += (capitalizeFirstLetter(dataTypes[i])+ " (°C): "  + crit.toFixed(1) + "<br/>");
+								break;
+							}
 						}
 					}
 						
@@ -476,32 +494,37 @@
 		<div><h3>Elevation Span Covered: <span id="info-eleSpan"/></h3></div>
 		</div>
 		<div id="map-section">
-		<div id="map_canvas"></div>
+		
+		<!-- start legend & current radio button info-->
+		<h4 id="map-current-plot">Choose an option and hover over the path to reveal more data!</h4>
+		<h3 id="map-legend">LOW <img src="img/legend.png" alt="Smiley face" height="25" width="80%"> HIGH</h3>
+		<!-- end legend & current radio button info-->
 		<div id="upload-radiogroup">
 		<form action="#" name="selectVariable" id="selectVariable">
 			<input name="variable" type="radio" id="heart rate" value="2" checked/>
-			<label for="heart rate" name="variable">Heart rate</label>
+			<label for="heart rate" name="variable">Heart Rate</label>
 			<input name="variable" type="radio" id="elevation" value="1"/>
 			<label for="elevation" name="variable">Elevation</label>
 			<input name="variable" type="radio" id="cadence" value="3" />
 			<label for="cadence" id="cad-label" name="variable">Cadence</label>
 			<input name="variable" type="radio" id="atemp" value="4" />
 			<label for="atemp" id="atemp-label" name="variable">Air Temperature</label>
-		</form>
+		</form>		
 		</div>
+		<div id="map_canvas"></div>		
 		</div>
 	</div>
 	
 	
     <h2>Tracking File Upload</h2>
-    <p class="upload-text">Upload your gpx files and have your run mapped out. 
-	<br/>Track your heart rate, speed and altitude to
-    improve your health and improve your life, what are you waiting for? </p>
 	<div class="form-upload">
 		<form action="#" id="form" >
 		<label class="custom-file-upload"> Upload Your GPX file<input type="file" id="fileinput" onchange="ValidateSingleInput(this);"></label>
 		</form>
 	</div>
+    <p class="upload-text">Upload your gpx files and have your run mapped out.
+	<br/>Track your heart rate, speed and altitude to
+    improve your health and improve your life, what are you waiting for? </p>
 		</section>
 		
 		
