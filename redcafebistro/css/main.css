@@ -1,0 +1,132 @@
+/* Colours: 
+#801C00
+#FF734D
+#FF3700
+#803A26
+#CC2C00
+*/
+
+body {
+    margin: 0;
+    font-family: 'Raleway', sans-serif;
+    background-image: url("../images/background.jpg");
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+#main {
+    width: 75%;
+    max-width: 1280px;
+    background-color: #FFF;
+    margin: 50px auto;
+}
+
+nav {
+    text-align: center;
+    padding: 30px;
+    background-color: #FF734D;
+    background-image: url("../images/logo.png");
+    background-repeat: no-repeat;
+    background-position: left center;
+}
+
+nav a {
+    color: #FFF;
+    text-decoration: none;
+    font-size: large;
+    padding-left: 2%;
+    padding-right: 2%;
+}
+
+nav a:hover {
+    color: #803A26;
+}
+
+.sectionpic {
+    width: 100%;
+}
+
+#main p,h1,h2,h3 {
+    padding-left: 4%;
+    padding-right: 4%;
+    line-height: 160%;
+}
+
+ul {
+    padding-left: 12%;
+    margin-bottom: 40px;
+}
+
+footer {
+    text-align: center;
+    color: #803A26;
+    background-color: #FF734D;
+    padding: 20px;
+}
+
+iframe {
+    width: 70%;
+    height: 600px;
+    margin: 20px auto;
+    display: block;
+}
+
+input {
+    width: 100%;
+    margin-bottom: 20px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+input[type="submit"] {
+    background-color: #803A26;
+    border: none;
+    color: #FFF;
+    padding: 16px 32px;
+    margin: 5px 5px;
+}
+
+form {
+    padding-left: 10%;
+    padding-right: 10%;
+}
+
+.flex-container {
+    width: 80%;
+    margin: 25px auto;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.flex-container > div {
+    flex: 31%;
+    margin: 1%;
+    justify-content: center;
+    display: flex;
+}
+
+.flex-container img {
+    width: 90%;
+}
+
+/* mobile friendly / browser size responsive code */
+/* switches gallery to 1 imager per row instead of 3 */
+@media (max-width: 767px){
+    .flex-container > div {
+        flex: 90%;
+    }
+}
+
+/* switches logo to medium sze so it doesn't overlap links */
+@media (max-width: 1370px){
+    nav {
+        background-image: url("../images/logo_medium.png");
+    }
+}
+
+/* switches logo to small size so it doesn't overlap links */
+@media (max-width: 950px){
+    nav {
+        background-image: url("../images/logo_small.png");
+    }
+}
