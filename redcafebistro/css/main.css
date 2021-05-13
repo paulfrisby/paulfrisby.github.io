@@ -109,6 +109,12 @@ form {
     width: 90%;
 }
 
+#test {
+	text-align: center;
+	display: block;
+    margin: 0 auto;
+}
+
 /* mobile friendly / browser size responsive code */
 /* switches gallery to 1 imager per row instead of 3 */
 @media (max-width: 767px){
