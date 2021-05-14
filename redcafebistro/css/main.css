@@ -46,7 +46,7 @@ nav a:hover {
     width: 100%;
 }
 
-#main p,h1,h2,h3 {
+main p,h1,h2,h3 {
     padding-left: 4%;
     padding-right: 4%;
     line-height: 160%;
